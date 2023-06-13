@@ -50,7 +50,8 @@ spec:
             {{- toYaml .resources | nindent 12 }}
           volumeMounts:
           - name: config
-            mountPath: "/config"
+            mountPath: "/config/config.hjson"
+            subPath: config.hjson
             readOnly: true
         {{ end }}
       {{- with .Values.nodeSelector }}
@@ -67,8 +68,5 @@ spec:
       {{- end }}
       volumes:
       - name: config
-        configMap:
-          name: {{ $fullName }}-api-config
-          items:
-          - key: "config.hjson"
-            path: "config.hjson"
+        secret:
+          secretName: {{ $fullName }}-api-config

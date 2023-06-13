@@ -87,43 +87,39 @@ data:
   username: {{ $adminUsername | b64enc }}
   password: {{ $adminPassword | b64enc }}
 ---
-kind: ConfigMap
+kind: Secret
 apiVersion: v1
 metadata:
   name: {{ $fullName }}-api-config
   labels:
     {{- include "lemmy.labels" . | nindent 4 }}
-data: 
-  config.hjson: |
-    {
-      # for more info about the config, check out the documentation
-      # https://join-lemmy.org/docs/en/administration/configuration.html
+data:
+{{- $config := dict
+  "setup" (dict
+    "admin_username" $adminUsername
+    "admin_password" $adminPassword
+    "site_name" .Values.configuration.siteName
+  )
+  "database" (dict
+    "user" $postgresUser
+    "password" $postgresPassword
+    "database" $postgresDB
+    "host" $postgresHost
+    "pool_size" .Values.postgres.poolSize
+  )
+  "hostname" .Values.configuration.host
+  "bind" .Values.configuration.bindAddress
+  "port" .Values.lemmy.service.port
 
-      # This is a minimal lemmy config for the dev / main branch. Do not use for a 
-      # release / stable version.
-
-      setup: {
-          admin_username: {{ $adminUsername | quote }}
-          admin_password: {{ $adminPassword | quote }}
-          site_name: {{ .Values.configuration.siteName | quote}}
-      }
-      database: {
-          user: "{{ $postgresUser }}"
-          password: "{{ $postgresPassword }}"
-          database: "{{ $postgresDB }}"
-          host: "{{ $postgresHost }}"
-          pool_size: {{ .Values.postgres.poolSize }}
-      }
-
-      hostname: {{ .Values.configuration.host }}
-      bind: {{ .Values.configuration.bindAddress }}
-      port: {{ .Values.lemmy.service.port }}
-
-      pictrs: {
-          url: "http://{{ $pictrsService }}:{{ .Values.pictrs.service.port }}/"
-          api_key: "{{ $pictrsApiKey }}"
-      }
-      {{- if .Values.configuration.opentelemetry }}
-      opentelemetry_url: {{ .Values.configuration.opentelemetry }}
-      {{- end }}
-    }
+  "pictrs" (dict
+    "url" (printf "http://%v:%v/" $pictrsService .Values.pictrs.service.port)
+    "api_key" $pictrsApiKey
+  )
+-}}
+{{- if .Values.configuration.opentelemetry -}}
+{{- $configTmp := dict
+  "opentelemetry_url" (.Values.configuration.opentelemetry | default "")
+-}}
+{{- $config = merge $config $configTmp -}}
+{{- end }}
+  config.hjson: {{ $config | toPrettyJson | b64enc }}
