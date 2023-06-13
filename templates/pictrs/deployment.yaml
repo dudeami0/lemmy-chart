@@ -1,0 +1,113 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-pictrs
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lemmy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pictrs
+  template:
+    metadata:
+      {{- with .Values.pictrs.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "lemmy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: pictrs
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lemmy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.pictrs.podSecurityContext | nindent 8 }}
+      {{ if .Values.pictrs.storage.kind }}
+      initContainers:
+      - name: {{ .Chart.Name }}-pictrs-init
+        image: busybox
+        command: ["sh", "-c", "chown -R 991:991 /mnt"]
+        volumeMounts:
+        - mountPath: /mnt
+          name: pictrs-data
+      {{ end }}
+      containers:
+        {{ with .Values.pictrs }}
+        - name: {{ $.Chart.Name }}-pictrs
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          {{ if .storage.kind }}
+          volumeMounts:
+          - mountPath: /mnt
+            name: pictrs-data
+          {{ end }}
+          ports:
+            - name: pictrs
+              containerPort: {{ .service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+          {{ with .config }}
+          env:
+            {{- if .opentelemetry }}
+            - name: PICTRS_OPENTELEMETRY_URL
+              value: {{ .opentelemetry }}
+            {{- end }}
+            - name: PICTRS__API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-pictrs
+                  key: apikey
+            - name: RUST_LOG
+              value: {{ .rustLog | quote }}
+            - name: RUST_BACKTRACE
+              value: {{ .rustBacktrace | quote }}
+            - name: PICTRS__MEDIA__VIDEO_CODEC
+              value: {{ .videoCodec | quote }}
+            - name: PICTRS__MEDIA__GIF__MAX_WIDTH
+              value: {{ .gifMaxWidth | quote }}
+            - name: PICTRS__MEDIA__GIF__MAX_HEIGHT
+              value: {{ .gifMaxHeight | quote }}
+            - name: PICTRS__MEDIA__GIF__MAX_AREA
+              value: {{ .gifMaxArea | quote }}
+            - name: PICTRS__MEDIA__GIF__MAX_FRAME_COUNT
+              value: {{ .gifMaxFrameCount | quote }}
+          {{ end }}
+        {{ end }}
+      {{- with .Values.pictrs.storage }}
+      volumes:
+      {{- if eq .kind "hostvol" }}
+      - name: pictrs-data
+        hostPath:
+          path: {{ .hostvol.path }}
+          type: DirectoryOrCreate
+      {{- else if eq .kind "persistentVolumeClaim" }}
+      - name: pictrs-data
+        persistentVolumeClaim:
+          claimName: {{ $fullName }}-pictrs-data
+      {{- else }}
+      {{- fail (printf "`pictrs.storage.kind` %v is not valid, use hostvol or persistentVolumeClaim " .kind) -}}
+      {{- end -}}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

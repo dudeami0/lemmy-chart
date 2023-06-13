@@ -1,0 +1,18 @@
+{{ with .Values.nginx }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lemmy.fullname" $ }}-nginx
+  labels:
+    {{- include "lemmy.labels" $ | nindent 4 }}
+spec:
+  type: {{ .service.type }}
+  ports:
+    - port: {{ .service.port }}
+      targetPort: nginx
+      protocol: TCP
+      name: nginx
+  selector:
+    {{- include "lemmy.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: nginx
+{{ end }}

@@ -1,0 +1,71 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lemmy.fullname" . }}-ui
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lemmy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ui
+  template:
+    metadata:
+      {{- with (index .Values "lemmy-ui").podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "lemmy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ui
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lemmy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml (index .Values "lemmy-ui").podSecurityContext | nindent 8 }}
+      containers:
+        {{ with index .Values "lemmy-ui" }}
+        - name: {{ $.Chart.Name }}-ui
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          ports:
+            - name: lemmy-ui
+              containerPort: {{ .service.port }}
+              protocol: TCP
+          env:
+            - name: LEMMY_UI_HOST
+              value: "0.0.0.0:{{ .service.port }}"
+            - name: LEMMY_UI_LEMMY_INTERNAL_HOST
+              value: "{{ $fullName }}-api:{{ $.Values.lemmy.service.port }}"
+            - name: LEMMY_UI_LEMMY_EXTERNAL_HOST
+              value: {{ .config.externalHost | quote }}
+            - name: LEMMY_UI_HTTPS
+              value: {{ .config.https | quote }}
+            {{- if .config.debug }}
+            - name: LEMMY_UI_DEBUG
+              value: "true"
+            {{- end }}
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+        {{ end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

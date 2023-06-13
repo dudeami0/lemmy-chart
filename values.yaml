@@ -1,0 +1,201 @@
+# Default values for lemmy.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+# General configuration for the lemmy instance
+configuration:
+  host: "localhost"
+  adminUsername: "lemmy"
+  siteName: "lemmy-dev"
+  enableTLS: true
+  bindAddress: "0.0.0.0"
+  adminEmail: ""
+  opentelemetry: ""
+
+# Configuration of the lemmy instance
+lemmy:
+  image:
+    repository: dessalines/lemmy
+    pullPolicy: IfNotPresent
+    tag: "0.17.4"
+  config:
+    rustLog: "warn,lemmy_server=debug,lemmy_api=debug,lemmy_api_common=debug,lemmy_api_crud=debug,lemmy_apub=debug,lemmy_db_schema=debug,lemmy_db_views=debug,lemmy_db_views_actor=debug,lemmy_db_views_moderator=debug,lemmy_routes=debug,lemmy_utils=debug,lemmy_websocket=debug"
+    rustBacktrace: "full"
+  # These shouldn't change much, but are API endpoints to redirect to the lemmy api pod
+  apiEndpoints:
+    - "/api"
+    - "/pictrs"
+    - "/feeds"
+    - "/nodeinfo"
+    - "/.well-known"
+  service:
+    type: ClusterIP
+    port: 8536
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+  podAnnotations: {}
+  podSecurityContext: {}
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+lemmy-ui:
+  image:
+    repository: dessalines/lemmy-ui
+    pullPolicy: IfNotPresent
+    tag: "0.17.4"
+  config:
+    externalHost: something:1234
+    https: false
+    debug: true
+  service:
+    type: ClusterIP
+    port: 8080
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+  podSecurityContext: {}
+  podAnnotations: {}
+  resources: {}
+
+nginx:
+  image:
+    repository: nginx
+    pullPolicy: IfNotPresent
+    tag: "alpine3.17"
+  service:
+    type: ClusterIP
+    port: 80
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+    runAsGroup: 0
+  podSecurityContext: {}
+  podAnnotations: {}
+  resources: {}
+
+pictrs:
+  image:
+    repository: asonix/pictrs
+    pullPolicy: IfNotPresent
+    tag: "0.4.0-rc.3"
+  storage:
+    kind: hostvol
+    hostvol:
+      path: /opt/lemmy/pictrs
+    pvc:
+      size: 16Gi
+  config:
+    opentelemetry: ""
+    apiKey: "API_KEY"
+    rustLog: "debug"
+    rustBacktrace: "full"
+    videoCodec: "vp9"
+    gifMaxWidth: 256
+    gifMaxHeight: 256
+    gifMaxArea: 65536
+    gifMaxFrameCount: 400
+  service:
+    type: ClusterIP
+    port: 8080
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsNonRoot: true
+    runAsUser: 991
+    runAsGroup: 991
+  podSecurityContext:
+    fsGroup: 991
+  podAnnotations: {}
+  resources: {}
+
+postgres:
+  enabled: false
+  poolSize: 5
+  storage:
+    kind: hostvol
+    hostvol:
+      path: /opt/lemmy/postgres
+    pvc:
+      size: 16Gi
+  image:
+    repository: postgres
+    pullPolicy: IfNotPresent
+    tag: "15-alpine"
+  service:
+    type: ClusterIP
+    port: 5432
+  securityContext:
+    capabilities:
+      drop:
+      - ALL
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+  podSecurityContext:
+    fsGroup: 70
+  podAnnotations: {}
+  resources: {}
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,19 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+{{- with .Values.postgres.storage -}}
+{{- if eq .kind "persistentVolumeClaim" -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullName }}-postgres-data
+  namespace: {{ $.Release.Namespace }}
+spec:
+  {{ if .pvc.storageClassName -}}
+  storageClassName: {{ .pvc.storageClassName }}
+  {{- end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .pvc.size }}
+{{- end -}}
+{{- end }}

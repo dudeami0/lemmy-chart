@@ -1,0 +1,18 @@
+{{ with .Values.pictrs }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lemmy.fullname" $ }}-pictrs
+  labels:
+    {{- include "lemmy.labels" $ | nindent 4 }}
+spec:
+  type: {{ .service.type }}
+  ports:
+    - port: {{ .service.port }}
+      targetPort: pictrs
+      protocol: TCP
+      name: pictrs
+  selector:
+    {{- include "lemmy.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: pictrs
+{{ end }}

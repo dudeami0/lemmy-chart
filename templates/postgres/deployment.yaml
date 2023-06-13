@@ -1,0 +1,114 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-postgres
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lemmy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      {{- with .Values.postgres.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "lemmy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lemmy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.postgres.podSecurityContext | nindent 8 }}
+      {{ if .Values.postgres.storage.kind }}
+      initContainers:
+      - name: {{ .Chart.Name }}-postgres-init
+        image: busybox
+        command: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql/data"]
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+      {{ end }}
+      containers:
+        {{ with .Values.postgres }}
+        - name: {{ $.Chart.Name }}-postgres
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+#          command: [ "postgres" ]
+#          args: [
+#            "-c",
+#            "session_preload_libraries=auto_explain",
+#            "-c",
+#            "auto_explain.log_min_duration=5ms",
+#            "-c",
+#            "auto_explain.log_analyze=true",
+#            "-c",
+#            "track_activity_query_size=1048576"
+#          ]
+          {{ if .storage.kind }}
+          volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: postgres-data
+          {{ end }}
+          ports:
+            - name: postgres
+              containerPort: {{ .service.port }}
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-postgres
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-postgres
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}-postgres
+                  key: db
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+        {{ end }}
+      {{- with .Values.postgres.storage }}
+      volumes:
+      {{- if eq .kind "hostvol" }}
+      - name: postgres-data
+        hostPath:
+          path: {{ .hostvol.path }}
+          type: DirectoryOrCreate
+      {{- else if eq .kind "persistentVolumeClaim" }}
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: {{ $fullName }}-postgres-data
+      {{- else }}
+      {{- fail (printf "`postgres.storage.kind` %v is not valid, use hostvol or persistentVolumeClaim " .kind) -}}
+      {{- end -}}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

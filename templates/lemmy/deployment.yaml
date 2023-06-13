@@ -1,0 +1,74 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lemmy.fullname" . }}-api
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lemmy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      {{- with .Values.lemmy.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "lemmy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lemmy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.lemmy.podSecurityContext | nindent 8 }}
+      containers:
+        {{ with .Values.lemmy }}
+        - name: {{ $.Chart.Name }}-api
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          ports:
+            - name: lemmy-api
+              containerPort: {{ .service.port }}
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: {{ .config.rustLog | quote }}
+            - name: RUST_BACKTRACE
+              value: {{ .config.rustBacktrace | quote }}
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+          volumeMounts:
+          - name: config
+            mountPath: "/config"
+            readOnly: true
+        {{ end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ $fullName }}-api-config
+          items:
+          - key: "config.hjson"
+            path: "config.hjson"

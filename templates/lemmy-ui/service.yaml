@@ -1,0 +1,18 @@
+{{ with index .Values "lemmy-ui" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lemmy.fullname" $ }}-ui
+  labels:
+    {{- include "lemmy.labels" $ | nindent 4 }}
+spec:
+  type: {{ .service.type }}
+  ports:
+    - port: {{ .service.port }}
+      targetPort: lemmy-ui
+      protocol: TCP
+      name: lemmy-ui
+  selector:
+    {{- include "lemmy.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: ui
+{{ end }}

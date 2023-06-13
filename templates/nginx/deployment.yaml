@@ -1,0 +1,73 @@
+{{- $fullName := include "lemmy.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-nginx
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "lemmy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nginx
+  template:
+    metadata:
+      {{- with .Values.nginx.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "lemmy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nginx
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lemmy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.nginx.podSecurityContext | nindent 8 }}
+      containers:
+        {{ with .Values.nginx }}
+        - name: {{ $.Chart.Name }}-nginx
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          image: "{{ .image.repository }}:{{ .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy }}
+          ports:
+            - name: nginx
+              containerPort: {{ .service.port }}
+              protocol: TCP
+          volumeMounts:
+          - name: config
+            mountPath: "/etc/nginx"
+            readOnly: true
+          - name: cache
+            mountPath: /var/cache/nginx/
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+        {{ end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ $fullName }}-nginx
+          items:
+          - key: "nginx.conf"
+            path: "nginx.conf"
+      - name: cache
+        emptyDir: {}

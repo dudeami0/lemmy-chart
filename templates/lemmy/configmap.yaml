@@ -1,0 +1,129 @@
+{{- $postgresUser := "" -}}
+{{- $postgresPassword := "" -}}
+{{- $postgresDB := "" -}}
+{{- $postgresHost := "" -}}
+{{- $pictrsApiKey := "" -}}
+{{- $adminUsername := "" -}}
+{{- $adminPassword := "" -}}
+{{- $fullName := include "lemmy.fullname" . -}}
+{{- define "lemmy.configmap.fail" }}
+
+`postgres.enabled` is false and no postgres secret was configured! To
+configure connecting to an external postgres instance configure and run:
+
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_HOST=
+POSTGRES_DB=
+kubectl create secret -n {{ .Release.Namespace }} {{ include "lemmy.fullname" . }}-postgres \
+    --from-literal=user=${POSTGRES_USER} \
+    --from-literal=password=${POSTGRES_PASSWORD} \
+    --from-literal=host=${POSTGRES_HOST} \
+    --from-literal=db=${POSTGRES_DB}
+
+Or set `postgres.enabled` to `true` when deploying to create a single postgres
+instance automatically (not ideal for large scale production).
+{{- end -}}
+{{- $postgresData := (lookup "v1" "Secret" .Release.Namespace (printf "%v%v" $fullName "-postgres")).data -}}
+{{- if $postgresData -}}
+{{- $postgresUser = ($postgresData.user | b64dec) -}}
+{{- $postgresPassword = ($postgresData.password | b64dec) -}}
+{{- $postgresDB = ($postgresData.db | b64dec) -}}
+{{- if .Values.postgres.enabled -}}
+{{- $postgresHost = printf "%v-%v" $fullName "postgres" -}}
+{{- else -}}
+{{- $postgresHost = $postgresData.host | b64dec -}}
+{{- end -}}
+{{- else if .Values.postgres.enabled -}}
+{{- $postgresUser = "lemmy" -}}
+{{- $postgresPassword = randAlphaNum 32 -}}
+{{- $postgresDB = "lemmy" -}}
+{{- $postgresHost = printf "%v-%v" $fullName "postgres" -}}
+{{- else -}}
+{{ fail (include "lemmy.configmap.fail" .) }}
+{{- end -}}
+{{- $pictrsService := printf "%v%v" $fullName "-pictrs" -}}
+{{- $pictrsData := (lookup "v1" "Secret" .Release.Namespace (printf "%v%v" $fullName "-pictrs")).data -}}
+{{- if $pictrsData -}}
+{{- $pictrsApiKey = $pictrsData.apikey | b64dec -}}
+{{- else -}}
+{{- $pictrsApiKey = randAlphaNum 32 -}}
+{{- end -}}
+{{- $adminData := (lookup "v1" "Secret" .Release.Namespace (printf "%v%v" $fullName "-admin")).data -}}
+{{- if $adminData -}}
+{{- $adminUsername = $adminData.username | b64dec -}}
+{{- $adminPassword = $adminData.password | b64dec -}}
+{{- else -}}
+{{- $adminUsername = .Values.configuration.adminUsername -}}
+{{- $adminPassword = randAlphaNum 32 -}}
+{{- end -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-postgres
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+data:
+  user: {{ $postgresUser | b64enc }}
+  password: {{ $postgresPassword | b64enc }}
+  db: {{ $postgresDB | b64enc }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-pictrs
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+data:
+  apikey: {{ $pictrsApiKey | b64enc }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-admin
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+data:
+  username: {{ $adminUsername | b64enc }}
+  password: {{ $adminPassword | b64enc }}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ $fullName }}-api-config
+  labels:
+    {{- include "lemmy.labels" . | nindent 4 }}
+data: 
+  config.hjson: |
+    {
+      # for more info about the config, check out the documentation
+      # https://join-lemmy.org/docs/en/administration/configuration.html
+
+      # This is a minimal lemmy config for the dev / main branch. Do not use for a 
+      # release / stable version.
+
+      setup: {
+          admin_username: {{ $adminUsername | quote }}
+          admin_password: {{ $adminPassword | quote }}
+          site_name: {{ .Values.configuration.siteName | quote}}
+      }
+      database: {
+          user: "{{ $postgresUser }}"
+          password: "{{ $postgresPassword }}"
+          database: "{{ $postgresDB }}"
+          host: "{{ $postgresHost }}"
+          pool_size: {{ .Values.postgres.poolSize }}
+      }
+
+      hostname: {{ .Values.configuration.host }}
+      bind: {{ .Values.configuration.bindAddress }}
+      port: {{ .Values.lemmy.service.port }}
+
+      pictrs: {
+          url: "http://{{ $pictrsService }}:{{ .Values.pictrs.service.port }}/"
+          api_key: "{{ $pictrsApiKey }}"
+      }
+      {{- if .Values.configuration.opentelemetry }}
+      opentelemetry_url: {{ .Values.configuration.opentelemetry }}
+      {{- end }}
+    }
