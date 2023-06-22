@@ -50,17 +50,19 @@ spec:
           resources:
             {{- toYaml .resources | nindent 12 }}
         {{ end }}
-      {{- with .Values.nodeSelector }}
+      {{- with .Values.nginx -}}
+      {{- with .nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with .affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end -}}
       {{- end }}
       volumes:
       - name: config

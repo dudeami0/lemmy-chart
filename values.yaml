@@ -43,6 +43,9 @@ lemmy:
   podAnnotations: {}
   podSecurityContext: {}
   resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
     # resources, such as Minikube. If you do want to specify resources, uncomment the following
@@ -76,6 +79,9 @@ lemmy-ui:
   podSecurityContext: {}
   podAnnotations: {}
   resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 nginx:
   image:
@@ -92,6 +98,9 @@ nginx:
   podSecurityContext: {}
   podAnnotations: {}
   resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 pictrs:
   image:
@@ -128,6 +137,9 @@ pictrs:
     fsGroup: 991
   podAnnotations: {}
   resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 postgres:
   enabled: false
@@ -156,6 +168,9 @@ postgres:
     fsGroup: 70
   podAnnotations: {}
   resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 imagePullSecrets: []
 nameOverride: ""
@@ -194,8 +209,3 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
