@@ -8,9 +8,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   nginx.conf: |
-    worker_processes 1;
+    worker_processes {{ .Values.nginx.config.worker_processes }};
     events {
-        worker_connections 1024;
+        worker_connections {{ .Values.nginx.config.worker_connections }};
     }
     http {
         upstream lemmy {

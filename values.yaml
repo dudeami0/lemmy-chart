@@ -88,6 +88,9 @@ nginx:
     repository: nginx
     pullPolicy: IfNotPresent
     tag: "alpine3.17"
+  config:
+    worker_connections: 1024
+    worker_processes: 1
   service:
     type: ClusterIP
     port: 80
