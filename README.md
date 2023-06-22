@@ -2,6 +2,11 @@
 
 This chart is designed to make running Lemmy (https://join-lemmy.org/) easy on a kubernetes cluster.
 
+## Warnings
+
+This is mostly for experimental use by me. There are a number of things to improve, but for now I would consider this
+chart experimental.
+
 ## Example installation
 
 To start, create the namespace you wish to install into, then create secrets for postgres credentials and pictrs keys:
