@@ -21,7 +21,7 @@ lemmy:
     pullPolicy: IfNotPresent
     tag: "0.17.4"
   config:
-    rustLog: "warn,lemmy_server=debug,lemmy_api=debug,lemmy_api_common=debug,lemmy_api_crud=debug,lemmy_apub=debug,lemmy_db_schema=debug,lemmy_db_views=debug,lemmy_db_views_actor=debug,lemmy_db_views_moderator=debug,lemmy_routes=debug,lemmy_utils=debug,lemmy_websocket=debug"
+    rustLog: "warn,lemmy_server=warn,lemmy_api=warn,lemmy_api_common=warn,lemmy_api_crud=warn,lemmy_apub=warn,lemmy_db_schema=warn,lemmy_db_views=warn,lemmy_db_views_actor=warn,lemmy_db_views_moderator=warn,lemmy_routes=warn,lemmy_utils=warn,lemmy_websocket=warn"
     rustBacktrace: "full"
   # These shouldn't change much, but are API endpoints to redirect to the lemmy api pod
   apiEndpoints:
