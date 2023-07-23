@@ -8,9 +8,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   nginx.conf: |
-    worker_processes 1;
+    worker_processes {{ .Values.nginx.config.worker_processes }};
     events {
-        worker_connections 1024;
+        worker_connections {{ .Values.nginx.config.worker_connections }};
     }
     http {
         upstream lemmy {
@@ -46,10 +46,7 @@ data:
                 # don't change lemmy-ui or lemmy here, they refer to the upstream definitions on top
                 set $proxpass "http://lemmy-ui";
 
-                if ($http_accept = "application/activity+json") {
-                  set $proxpass "http://lemmy";
-                }
-                if ($http_accept = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"") {
+                if ($http_accept ~ "^application/.*$") {
                   set $proxpass "http://lemmy";
                 }
                 if ($request_method = POST) {
